@@ -23,14 +23,6 @@ class FileAttachmentField extends FileField {
     );
 
     /**
-     * Track files that are uploaded and remove the tracked files when
-     * they are saved into a record.
-     *
-     * @var boolean
-     */
-    private static $track_files = false;
-
-    /**
      * A list of settings for this instance
      * @var array
      */
@@ -81,12 +73,6 @@ class FileAttachmentField extends FileField {
     protected $displayFolderName;
 
     /**
-     * Set to true if detected invalid file ID
-     * @var boolean
-     */
-    protected $hasInvalidFileID;
-
-    /**
      * Helper function to translate underscore_case to camelCase
      * @param  string $str
      * @return string
@@ -122,7 +108,7 @@ class FileAttachmentField extends FileField {
             File::ini2bytes(ini_get('upload_max_filesize') ?: '2M')
         ));
 
-        return floor($bytes/(1024*1024));
+        return floor($bytes/(1000*1000));
     }
 
     /**
@@ -151,30 +137,10 @@ class FileAttachmentField extends FileField {
      * Renders the form field, loads requirements. Sets file size based on php.ini
      * Adds the security token
      *
-     * @param array $attributes
+     * @param array $attributes [description]
      * @return  SSViewer
      */
     public function FieldHolder($attributes = array ()) {
-        $this->defineFieldHolderRequirements();
-        return parent::FieldHolder($attributes);
-    }
-
-    /**
-     * Renders the small form field holder, loads requirements. Sets file size based on php.ini
-     * Adds the security token
-     *
-     * @param array $attributes
-     * @return  SSViewer
-     */
-    public function SmallFieldHolder($attributes = array ()) {
-        $this->defineFieldHolderRequirements();
-        return parent::SmallFieldHolder($attributes);
-    }
-
-    /**
-     * Define some requirements and settings just before rendering the Field Holder.
-     */
-    protected function defineFieldHolderRequirements() {
         Requirements::javascript(DROPZONE_DIR.'/javascript/dropzone.js');
         Requirements::javascript(DROPZONE_DIR.'/javascript/file_attachment_field.js');
         if($this->isCMS()) {
@@ -199,6 +165,14 @@ class FileAttachmentField extends FileField {
                 $this->imagesOnly();
             }
         }
+
+        if($token = $this->getForm()->getSecurityToken()) {
+            $this->addParam($token->getName(), $token->getSecurityID());
+        }
+
+        $this->extend('onBeforeRender', $this);
+
+        return parent::FieldHolder($attributes);
     }
 
     /**
@@ -213,27 +187,65 @@ class FileAttachmentField extends FileField {
         // Handle deletions. This is a bit of a hack. A workaround for having a single form field
         // post two params.
         $deletions = Controller::curr()->getRequest()->postVar('__deletion__'.$this->getName());
-
+        
         if($deletions) {
             foreach($deletions as $id) {
                 $this->deleteFileByID($id);
             }
         }
+        
+        $ImmoImages = $this->Value();
+        
+        // debug::dump($ImmoImages); die;
 
-        if(($relation = $this->getRelation($record))) {
-            $relation->setByIDList((array) $this->Value());
-        } elseif($record->has_one($fieldname)) {
-            $record->{"{$fieldname}ID"} = $this->Value() ?: 0;
-        } elseif($record->hasField($fieldname)) {
-			$record->$fieldname = is_array($this->Value()) ? implode(',', $this->Value()) : $this->Value();
-		}
+        if ($record) {
+            
+            $x = 0;
 
-        if ($this->getTrackFiles()) {
-            $fileIDs = (array)$this->Value();
-            FileAttachmentFieldTrack::untrack($fileIDs);
+                foreach ($ImmoImages as $ID) {
+
+                    //debug::dump($ID);
+                    // ONLY ADD, IF THERE IS NO IMMOIMAGR WITH THAT ID
+                    
+                    if ( ImmoImage::get()->filter('ID', $ID )->Count() == 1) {
+                        
+                    } else {
+                        $ImmoImage = new ImmoImage();
+                        $ImmoImage->ClassName = 'ImmoImage';
+                        $ImmoImage->ImageID = $ID;
+                        $ImmoImage->ImmobilieID = $record->ID;
+                        $ImmoImage->write();
+                        $record->ImmoImages()->add($ImmoImage);
+                        $x++;
+                        
+                    }
+                    
+                }
+                // $record->write();
+            
         }
-
-        return $this;
+        
+        
+        
+        //$form->sessionMessage('Yay','good');
+        //Controller::curr()->redirectBack();
+        
+        
+         return $this;
+        
+        
+        
+        
+        
+        // if($relation = $this->getRelation()) {
+//             $relation->setByIDList($this->Value());
+//         } elseif($record->has_one($fieldname)) {
+//             $record->{"{$fieldname}ID"} = $this->Value() ?: 0;
+//         } elseif($record->hasField($fieldname)) {
+//             $record->$fieldname = is_array($this->Value()) ? implode(',', $this->Value()) : $this->Value();
+//         }
+//
+//         return $this;
     }
 
     /**
@@ -244,27 +256,6 @@ class FileAttachmentField extends FileField {
     public function setMethod($method) {
         $this->settings['method'] = $method;
 
-        return $this;
-    }
-
-    /**
-     * Return whether files are tracked or not.
-     * @return boolean
-     */
-    public function getTrackFiles() {
-        if (isset($this->settings['trackFiles']) && $this->settings['trackFiles'] !== null) {
-            return $this->settings['trackFiles'];
-        }
-        return $this->config()->track_files;
-    }
-
-    /**
-     * Enable/disable file tracking on uploads
-     * @param boolean $bool
-     * @return  FileAttachmentField
-     */
-    public function setTrackFiles($bool) {
-        $this->settings['trackFiles'] = $bool;
         return $this;
     }
 
@@ -303,27 +294,6 @@ class FileAttachmentField extends FileField {
     }
 
     /**
-     * Maximum number of files allowed to be attached
-     * @param int $num
-     * @return $this
-     */
-    public function setMaxFiles($num){
-        $this->settings['maxFiles'] = $num;
-
-        return $this;
-    }
-
-    /**
-     * Maximum number of files allowed to be attached
-     * (Keeps API consistent with UploadField)
-     * @param int $num
-     * @return $this
-     */
-    public function setAllowedMaxFileNumber($num) {
-        return $this->setMaxFiles($num);
-    }
-
-    /**
      * Sets the name of the upload parameter, e.g. "Files"
      * @param string $name
      * @return  FileAttachmentField
@@ -354,130 +324,6 @@ class FileAttachmentField extends FileField {
         $this->settings['thumbnailFilesize'] = $num;
 
         return $this;
-    }
-
-    /**
-     * Add an array of IDs
-     *
-     * @return void
-     */
-    public function addValidFileIDs(array $ids) {
-        $validIDs = Session::get('FileAttachmentField.validFileIDs');
-        if (!$validIDs) {
-            $validIDs = array();
-        }
-        foreach ($ids as $id) {
-            $validIDs[$id] = $id;
-        }
-        Session::set('FileAttachmentField.validFileIDs', $validIDs);
-    }
-
-    /**
-     * Get an associative array of File IDs uploaded through this field
-     * during this session.
-     *
-     * @return array
-     */
-    public function getValidFileIDs() {
-        $validIDs = Session::get('FileAttachmentField.validFileIDs');
-        if ($validIDs && is_array($validIDs)) {
-            return $validIDs;
-        }
-        return array();
-    }
-
-    /**
-     * Check that the user is submitting the file IDs that they uploaded.
-     *
-     * @return boolean
-     */
-    public function validate($validator) {
-        $result = true;
-
-        // Detect if files have been removed between AJAX uploads and form submission
-        $value = $this->dataValue();
-        if ($value) {
-            $ids = (array)$value;
-            $fileCount = (int)File::get()->filter(array('ID' => $ids))->count();
-            if (count($ids) !== $fileCount) {
-                $validator->validationError(
-                    $this->name,
-                    _t(
-                        'FileAttachmentField.MISSINGFILE',
-                        'Files sent with form have since been removed from the server.'
-                    ),
-                    "validation"
-                );
-                $result = false;
-            }
-        }
-
-        if ($this->hasInvalidFileID) {
-            // If detected invalid file during 'Form::loadDataFrom'
-            // (Below validation isn't triggered as setValue() removes the invalid ID
-            //  to prevent the CMS from loading something it shouldn't, also stops the
-            //  validator from realizing there's an invalid ID.)
-            $validator->validationError(
-                $this->name,
-                _t(
-                    'FileAttachmentField.VALIDATION',
-                    'Invalid file ID sent.'
-                ),
-                "validation"
-            );
-            $result = false;
-        } else if ($value && is_array($value)) {
-            // Prevent a malicious user from inspecting element and changing
-            // one of the <input type="hidden"> fields to use an invalid File ID.
-            $validIDs = $this->getValidFileIDs();
-            foreach ($value as $id) {
-                if (!isset($validIDs[$id])) {
-                    if ($validator) {
-                        $validator->validationError(
-                            $this->name,
-                            _t(
-                                'FileAttachmentField.VALIDATION',
-                                'Invalid file ID sent.',
-                                array('id' => $id)
-                            ),
-                            "validation"
-                        );
-                    }
-                    $result = false;
-                }
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setValue($val, $data = array()) {
-        if ($data && is_array($data) && isset($data[$this->getName()])) {
-            // Prevent Form::loadDataFrom() from loading invalid File IDs
-            $isInvalid = false;
-            $validIDs = $this->getValidFileIDs();
-            // NOTE(Jake): If the $data[$name] is an array, its coming from 'loadDataFrom'
-            //             If its a single value, its just re-populating the ID on DB data most likely.
-            if (is_array($data[$this->getName()])) {
-                $ids = &$data[$this->getName()];
-                foreach ($ids as $i => $id) {
-                    if ($validIDs && !isset($validIDs[$id])) {
-                        unset($ids[$i]);
-                        $isInvalid = true;
-                    }
-                }
-                if ($isInvalid) {
-                    $ids = array_values($ids);
-                    $val = $ids;
-                    $this->hasInvalidFileID = true;
-                }
-                unset($ids); // stop $ids variable from modifying to $data array.
-            }
-        }
-        return parent::setValue($val, $data);
     }
 
     /**
@@ -568,7 +414,7 @@ class FileAttachmentField extends FileField {
      */
     public function setAcceptedMimeTypes($types = array ()) {
         if(is_array($types)) {
-            $types = implode(',', $types);
+            $types = explode(',', $types);
         }
         $this->settings['acceptedMimeTypes'] = $types;
 
@@ -605,15 +451,6 @@ class FileAttachmentField extends FileField {
     public function setMaxResolution($pixels) {
     	$this->settings['maxResolution'] = $pixels;
 
-    	return $this;
-    }
-
-    /**
-     * Sets the min resolution for images, in pixels
-     * @param int $pixels
-     */
-    public function setMinResolution($pixels) {
-    	$this->settings['minResolution'] = $pixels;
     	return $this;
     }
 
@@ -706,9 +543,8 @@ class FileAttachmentField extends FileField {
             return $this->httpError(403);
         }
 
-        $form = $this->getForm();
-        if($form) {
-            $token = $form->getSecurityToken();
+        if($this->getForm()) {
+            $token = $this->getForm()->getSecurityToken();
             if(!$token->checkRequest($request)) return $this->httpError(400);
         }
 
@@ -750,31 +586,8 @@ class FileAttachmentField extends FileField {
             if ($this->upload->isError()) {
                 return $this->httpError(400, implode(' ' . PHP_EOL, $this->upload->getErrors()));
             }
-
-            if ($this->getTrackFiles()) {
-                $controller = Controller::has_curr() ? Controller::curr() : null;
-                $formClass = ($form) ? get_class($form) : '';
-
-                $trackFile = FileAttachmentFieldTrack::create();
-                if ($controller instanceof LeftAndMain) {
-                    // If in CMS (store DataObject or Page)
-                    $formController = $form->getController();
-                    $trackFile->ControllerClass = $formController->class;
-                    if (!$formController instanceof LeftAndMain) {
-                        $trackFile->setRecord($formController->getRecord());
-                    }
-                } else if ($formClass !== 'Form') {
-                    $trackFile->ControllerClass = $formClass;
-                } else {
-                    // If using generic 'Form' instance, get controller
-                    $trackFile->ControllerClass = $controller->class;
-                }
-                $trackFile->FileID = $fileObject->ID;
-                $trackFile->write();
-            }
         }
 
-        $this->addValidFileIDs($ids);
         return new SS_HTTPResponse(implode(',', $ids), 200);
     }
 
@@ -854,32 +667,32 @@ class FileAttachmentField extends FileField {
             if($record->hasMethod($this->getName())) {
                 $result = $record->{$this->getName()}();
                 if($result instanceof SS_List) {
+                    $this->extend('updateAttachedFiles', $result);
                     return $result;
                 }
                 else if($result->exists()) {
-                    return ArrayList::create(array($result));
+                    $result = ArrayList::create(array($result));
+                    $this->extend('updateAttachedFiles', $result);
+                    return $result;
                 }
             }
         }
 
-		if ($ids = $this->dataValue()) {
-			if($ids instanceof ManyManyList) {
-				$ids = array_keys($ids->map()->toArray());
-			}
+        if ($ids = $this->dataValue()) {
+            if (!is_array($ids)) {
+                $ids = explode(',', $ids);
+            }
 
-			if (!is_array($ids)) {
-				$ids = explode(',', $ids);
-			}
-
-			$attachments = ArrayList::create();
-			foreach ($ids as $id) {
-				$file = File::get()->byID((int) $id);
-				if ($file && $file->canView()) {
-					$attachments->push($file);
-				}
-			}
-			return $attachments;
-		}
+            $attachments = ArrayList::create();
+            foreach ($ids as $id) {
+                $file = File::get()->byID((int) $id);
+                if ($file && $file->canView()) {
+                    $attachments->push($file);
+                }
+            }
+            $this->extend('updateAttachedFiles', $attachments);
+            return $attachments;
+        }
 
         return false;
     }
@@ -890,15 +703,7 @@ class FileAttachmentField extends FileField {
      * @return  string
      */
     public function RootThumbnailsDir() {
-        if($this->getSetting('thumbnailsDir')) {
-            return $this->getSetting('thumbnailsDir');
-        } 
-
-        if($this->config()->root_thumbnails_dir) {
-            return $this->config()->root_thumbnails_dir;
-        }
-        
-        return DROPZONE_DIR . '/images/file-icons';
+        return $this->getSetting('thumbnailsDir') ?: DROPZONE_DIR.'/images/file-icons';
     }
 
     /**
@@ -1098,7 +903,7 @@ class FileAttachmentField extends FileField {
 
         return false;
     }
-
+    
     /**
      * Gets a given setting. Falls back on Config defaults
      *
@@ -1107,7 +912,7 @@ class FileAttachmentField extends FileField {
      * @param  string $setting
      * @return mixed
      */
-    protected function getSetting($setting) {
+    public function getSetting($setting) {
         if(isset($this->settings[$setting])) {
             return $this->settings[$setting];
         }
@@ -1116,6 +921,20 @@ class FileAttachmentField extends FileField {
         $configName = static::underscorise($setting);
 
         return isset($config[$configName]) ? $config[$configName] : null;
+    }
+    
+    /**
+     * Sets a given setting.
+     *
+     * Note: config settings are in underscore_case
+     *
+     * @param  string $setting
+     * @param  string $value
+     */
+    public function setSetting($setting, $value) {
+    	$this->settings[static::underscorise($setting)] = $value;
+    	
+    	return $this;
     }
 
     /**
@@ -1184,10 +1003,10 @@ class FileAttachmentField extends FileField {
             }
         }
 
-        $data['params'] = ($this->params) ? $this->params : null;
+        $data['params'] = $this->params;
         $data['thumbnailsDir'] = $this->ThumbnailsDir();
         $data['thumbnailWidth'] = $this->getSelectedThumbnailWidth();
-        $data['thumbnailHeight'] = $this->getSelectedThumbnailHeight();
+        $data['thumbnailHeight'] = $this->getSelectedThumbnailHeight();        
 
         if(!$this->IsMultiple()) {
             $data['maxFiles'] = 1;
@@ -1209,6 +1028,7 @@ class FileAttachmentField_SelectHandler extends UploadField_SelectHandler {
     private static $allowed_actions = array (
         'filesbyid',
     );
+
 
     /**
      * @param $folderID The ID of the folder to display.
@@ -1256,7 +1076,6 @@ class FileAttachmentField_SelectHandler extends UploadField_SelectHandler {
         $ids = $r->getVar('ids');
         $files = File::get()->byIDs(explode(',',$ids));
 
-        $validIDs = array();
         $json = array ();
         foreach($files as $file) {
             $template = new SSViewer('FileAttachmentField_attachments');
@@ -1265,14 +1084,12 @@ class FileAttachmentField_SelectHandler extends UploadField_SelectHandler {
                 'Scope' => $this->parent
             )));
 
-            $validIDs[$file->ID] = $file->ID;
             $json[] = array (
                 'id' => $file->ID,
                 'html' => $html->forTemplate()
             );
         }
 
-        $this->parent->addValidFileIDs($validIDs);
         return Convert::array2json($json);
     }
 
