@@ -132,7 +132,7 @@ UploadInterface.prototype = {
         });
   
     },
-
+    
     /**
      * Looks through the droppedFiles array for a specific file
      * @param  {string|int} id
@@ -258,10 +258,39 @@ UploadInterface.prototype = {
             });
         });
 
-        q('[data-detach]', li).forEach(function (a) {             
-            a.addEventListener('click', function (e) {              
+        q('[data-detach]', li).forEach(function (a) {
+            a.addEventListener('click', function (e) {
                 e.preventDefault();                
                 _this.getFileByID(fileID).markForDetachment();
+            });
+        })
+        
+        q('[data-edit]', li).forEach(function (a) {
+            a.addEventListener('click', function (e) {
+                
+                e.preventDefault();
+                var dialogId = 'ss-uploadfield-dialog-' + fileID,
+                popup = jQuery('#' + dialogId);
+
+                if(!popup.length) popup = jQuery('<div class="ss-uploadfield-dialog" style="overflow-y: scroll !important;" id="' + dialogId + '" />');
+
+                popup.ssdialog({
+                    iframeUrl: a.getAttribute('data-edit-url'),
+                    modal: true,
+                    bgiframe: true,
+                    autoOpen: false,
+                    autoPosition: true,
+                    minWidth: 1000,
+                    maxWidth: 3000,
+                    minHeight: 600,
+                    maxHeight: 2000,
+                    widthRatio: .9,
+                    heightRatio: .9,
+                    resizable: true
+                });
+                
+                popup.ssdialog('open');
+                
             });
         })
     },

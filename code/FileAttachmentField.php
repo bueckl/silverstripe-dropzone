@@ -15,12 +15,34 @@ class FileAttachmentField extends FileField {
     private static $allowed_actions = array (
         'upload',
         'handleSelect',
+        'handleItem',
     );
+    
+    /* JOCHEN NOTE TO MYSELF
+    /* Weireldly i had to overwrite the Link method for the sort action!
+    /* the URL always had Locale="de_DE". This stopped the url from working. I stripped it off!!!
+    */
+	public function Link($action = null) {
+        $FormAction = strtok($this->form->FormAction(), '?');
+		return Controller::join_links($FormAction, 'field/' . $this->name, $action);
+	}
+    
+	public function UploadFieldEditLink($ID = null) {
+        $FormAction = strtok($this->form->FormAction(), '?');
+		return Controller::join_links($this->Link(), 'item' , $ID, 'edit');
+	}
+	
 
 
     private static $url_handlers = array (
         'select' => 'handleSelect',
+		'item/$ID' => 'handleItem',
+		'$Action!' => '$Action'
+        //
+        // '//$ID/edit' => 'handleItem',
+        
     );
+
 
     /**
      * A list of settings for this instance
@@ -71,7 +93,34 @@ class FileAttachmentField extends FileField {
      * @var string
      */
     protected $displayFolderName;
+    
+	/**
+	 * Template to use for the edit form
+	 *
+	 * @var string
+	 */
+	protected $templateFileEdit = 'FileAttachmentField_FileEdit';
+    
+    
+	/**
+	 * Set name of template used for the edit (inline & popup) of a file file (without path or extension)
+	 *
+	 * @param string
+	 */
+	public function setTemplateFileEdit($template) {
+		$this->templateFileEdit = $template;
+		return $this;
+	}
 
+	/**
+	 * @return string
+	 */
+	public function getTemplateFileEdit() {
+		return $this->templateFileEdit;
+	}
+    
+    
+    
     /**
      * Helper function to translate underscore_case to camelCase
      * @param  string $str
@@ -233,19 +282,7 @@ class FileAttachmentField extends FileField {
         
          return $this;
         
-        
-        
-        
-        
-        // if($relation = $this->getRelation()) {
-//             $relation->setByIDList($this->Value());
-//         } elseif($record->has_one($fieldname)) {
-//             $record->{"{$fieldname}ID"} = $this->Value() ?: 0;
-//         } elseif($record->hasField($fieldname)) {
-//             $record->$fieldname = is_array($this->Value()) ? implode(',', $this->Value()) : $this->Value();
-//         }
-//
-//         return $this;
+
     }
 
     /**
@@ -591,6 +628,24 @@ class FileAttachmentField extends FileField {
         return new SS_HTTPResponse(implode(',', $ids), 200);
     }
 
+
+	/**
+	 * @param SS_HTTPRequest $request
+	 * @return UploadField_ItemHandler
+	 */
+	public function handleItem(SS_HTTPRequest $request) {
+		return $this->getItemHandler($request->param('ID'));
+	}
+
+	/**
+	 * @param int $itemID
+	 * @return UploadField_ItemHandler
+	 */
+	public function getItemHandler($itemID) {
+		return FileAttachmentField_ItemHandler::create($this, $itemID);
+	}
+    
+    
 
     /**
      * @param SS_HTTPRequest $request
@@ -1021,6 +1076,110 @@ class FileAttachmentField extends FileField {
 
         return Convert::array2json($data);
     }
+    
+    
+	protected $fileEditFields = null;
+    
+    // /**
+    //  * FieldList $fields or string $name (of a method on File to provide a fields) for the EditForm
+    //  * @example 'getCMSFields'
+    //  *
+    //  * @param FieldList|string
+    //  * @return Uploadfield Self reference
+    //  */
+    // public function setFileEditFields($fileEditFields) {
+    //     $this->fileEditFields = $fileEditFields;
+    //     return $this;
+    // }
+
+    
+    // /**
+    //  * FieldList $fields for the EditForm
+    //  * @example 'getCMSFields'
+    //  *
+    //  * @param File $file File context to generate fields for
+    //  * @return FieldList List of form fields
+    //  */
+    //
+    //     public function getFileEditFields(File $file) {
+    //
+    //     // Empty actions, generate default
+    //     if(empty($this->fileEditFields)) {
+    //         $fields = $file->getCMSFields();
+    //         // Only display main tab, to avoid overly complex interface
+    //         if($fields->hasTabSet() && ($mainTab = $fields->findOrMakeTab('Root.Main'))) {
+    //             $fields = $mainTab->Fields();
+    //         }
+    //         return $fields;
+    //     }
+    //
+    //     // Fields instance
+    //     if ($this->fileEditFields instanceof FieldList) return $this->fileEditFields;
+    //
+    //     // Method to call on the given file
+    //     if($file->hasMethod($this->fileEditFields)) {
+    //         return $file->{$this->fileEditFields}();
+    //     }
+    //
+    //     user_error("Invalid value for UploadField::fileEditFields", E_USER_ERROR);
+    // }
+    //
+    //   
+     
+	/**
+	 * FieldList $actions or string $name (of a method on File to provide a actions) for the EditForm
+	 * @example 'getCMSActions'
+	 *
+	 * @var FieldList|string
+	 */
+	protected $fileEditActions = null;
+    
+    
+    
+	/**
+	 * Validator (eg RequiredFields) or string $name (of a method on File to provide a Validator) for the EditForm
+	 * @example 'getCMSValidator'
+	 *
+	 * @var RequiredFields|string
+	 */
+	protected $fileEditValidator = null;
+    
+    
+	/**
+	 * Determines the validator to use for the edit form
+	 * @example 'getCMSValidator'
+	 *
+	 * @param File $file File context to generate validator from
+	 * @return Validator Validator object
+	 */
+	public function getFileEditValidator(File $file) {
+		// Empty validator
+		if(empty($this->fileEditValidator)) return null;
+
+		// Validator instance
+		if($this->fileEditValidator instanceof Validator) return $this->fileEditValidator;
+
+		// Method to call on the given file
+		if($file->hasMethod($this->fileEditValidator)) {
+			return $file->{$this->fileEditValidator}();
+		}
+
+		user_error("Invalid value for UploadField::fileEditValidator", E_USER_ERROR);
+	}
+
+	/**
+	 * Validator (eg RequiredFields) or string $name (of a method on File to provide a Validator) for the EditForm
+	 * @example 'getCMSValidator'
+	 *
+	 * @param Validator|string
+	 * @return Uploadfield Self reference
+	 */
+	public function setFileEditValidator($fileEditValidator) {
+		$this->fileEditValidator = $fileEditValidator;
+		return $this;
+	}
+    
+    
 }
 
 class FileAttachmentField_SelectHandler extends UploadField_SelectHandler {
@@ -1092,5 +1251,247 @@ class FileAttachmentField_SelectHandler extends UploadField_SelectHandler {
 
         return Convert::array2json($json);
     }
+    
+    
 
 }
+
+
+
+/**
+ * RequestHandler for actions (edit, remove, delete) on a single item (File) of the UploadField
+ *
+ * @author Zauberfisch
+ * @package forms
+ * @subpackages fields-files
+ */
+class FileAttachmentField_ItemHandler extends RequestHandler {
+
+	/**
+	 * @var UploadFIeld
+	 */
+	protected $parent;
+
+	/**
+	 * @var int FileID
+	 */
+	protected $itemID;
+
+	private static $url_handlers = array(
+		'$Action!' => '$Action',
+		'' => 'index',
+	);
+
+	private static $allowed_actions = array(
+		'delete',
+		'edit',
+		'EditForm'
+	);
+    
+    
+	/**
+	 * @param UploadField $parent
+	 * @param int $itemID
+	 */
+	public function __construct($parent, $itemID) {
+		$this->parent = $parent;
+		$this->itemID = $itemID;
+
+		parent::__construct();
+	}
+
+	/**
+	 * @return File
+	 */
+	public function getItem() {
+		return DataObject::get_by_id('File', $this->itemID);
+	}
+
+	/**
+	 * @param string $action
+	 * @return string
+	 */
+	public function Link($action = null) {
+		return Controller::join_links($this->parent->Link(), '/item/', $this->itemID, $action);
+	}
+
+	/**
+	 * @return string
+	 */
+	public function DeleteLink() {
+		$token = $this->parent->getForm()->getSecurityToken();
+		return $token->addToUrl($this->Link('delete'));
+	}
+
+	/**
+	 * @return string
+	 */
+	public function EditLink() {
+		return $this->Link('edit');
+	}
+
+	/**
+	 * Action to handle deleting of a single file
+	 *
+	 * @param SS_HTTPRequest $request
+	 * @return SS_HTTPResponse
+	 */
+	public function delete(SS_HTTPRequest $request) {
+		// Check form field state
+		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
+
+		// Protect against CSRF on destructive action
+		$token = $this->parent->getForm()->getSecurityToken();
+		if(!$token->checkRequest($request)) return $this->httpError(400);
+
+		// Check item permissions
+		$item = $this->getItem();
+		if(!$item) return $this->httpError(404);
+		if($item instanceof Folder) return $this->httpError(403);
+		if(!$item->canDelete()) return $this->httpError(403);
+
+		// Delete the file from the filesystem. The file will be removed
+		// from the relation on save
+		// @todo Investigate if references to deleted files (if unsaved) is dangerous
+		$item->delete();
+	}
+
+	/**
+	 * Action to handle editing of a single file
+	 *
+	 * @param SS_HTTPRequest $request
+	 * @return ViewableData_Customised
+	 */
+	public function edit(SS_HTTPRequest $request) {
+		// Check form field state
+		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
+
+		// Check item permissions
+		$item = $this->getItem();
+        
+        $item = ImmoImage::get()->filter('ID', $item->ID)->First();
+        
+		if(!$item) return $this->httpError(404);
+		if($item instanceof Folder) return $this->httpError(403);
+		if(!$item->canEdit()) return $this->httpError(403);
+
+		Requirements::css(FRAMEWORK_DIR . '/css/UploadField.css');
+
+		return $this->customise(array(
+			'Form' => $this->EditForm()
+		))->renderWith($this->parent->getTemplateFileEdit());
+	}
+    
+    
+	/**
+	 * FieldList $actions or string $name (of a method on File to provide a actions) for the EditForm
+	 * @example 'getCMSActions'
+	 *
+	 * @param File $file File context to generate form actions for
+	 * @return FieldList Field list containing FormAction
+	 */
+	public function getFileEditActions(File $file) {
+
+		// Empty actions, generate default
+		if(empty($this->fileEditActions)) {
+			$actions = new FieldList($saveAction = new FormAction('doEdit', _t('UploadField.DOEDIT', 'Save')));
+			$saveAction->addExtraClass('ss-ui-action-constructive icon-accept');
+			return $actions;
+		}
+
+		// Actions instance
+		if ($this->fileEditActions instanceof FieldList) return $this->fileEditActions;
+
+		// Method to call on the given file
+		if($file->hasMethod($this->fileEditActions)) {
+			return $file->{$this->fileEditActions}();
+		}
+
+		user_error("Invalid value for UploadField::fileEditActions", E_USER_ERROR);
+	}
+
+	/**
+	 * FieldList $actions or string $name (of a method on File to provide a actions) for the EditForm
+	 * @example 'getCMSActions'
+	 *
+	 * @param FieldList|string
+	 * @return Uploadfield Self reference
+	 */
+	public function setFileEditActions($fileEditActions) {
+		$this->fileEditActions = $fileEditActions;
+		return $this;
+	}
+    
+    
+    
+    
+	/**
+	 * @return Form
+	 */
+	public function EditForm() {
+        // Is an ImmoImage Object ID
+        $ID = Controller::curr()->request->params()['ID'];
+        $ImmoImage = ImmoImage::get()->filter('ID', $ID)->First();
+
+		$file = $ImmoImage->Image();
+        
+        if(!$file) return $this->httpError(404);
+        if($file instanceof Folder) return $this->httpError(403);
+        if(!$file->canEdit()) return $this->httpError(403);
+        
+        // Get form components
+        $fields = singleton('ImmoImage')->getCMSFields();
+
+        // if($fields->hasTabSet() && ($mainTab = $fields->findOrMakeTab('Root.Main'))) {
+//             $fields = $mainTab->Fields();
+//         }
+
+        $actions = new FieldList(
+            new FormAction("doEdit", "edit")
+        );
+
+        $validator = new RequiredFields();
+
+        $form = new Form(
+			$this,
+			__FUNCTION__,
+			$fields,
+            $actions,
+            $validator
+		);
+		$form->loadDataFrom($ImmoImage);
+		$form->addExtraClass('small');
+
+		return $form;
+	}
+
+	/**
+	 * @param array $data
+	 * @param Form $form
+	 * @param SS_HTTPRequest $request
+	 */
+	public function doEdit(array $data, Form $form, SS_HTTPRequest $request) {
+		// Check form field state
+		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
+
+		// Check item permissions
+		$item = $this->getItem();
+        
+        $item = ImmoImage::get()->filter('ID', $item->ID)->First();
+        
+        
+		if(!$item) return $this->httpError(404);
+		if($item instanceof Folder) return $this->httpError(403);
+		if(!$item->canEdit()) return $this->httpError(403);
+        
+		$form->saveInto($item);
+		$item->write();
+        // debug::dump($item);
+        
+		$form->sessionMessage(_t('UploadField.Saved', 'Saved'), 'good');
+
+		return $this->edit($request);
+	}
+
+}
+

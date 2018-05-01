@@ -310,8 +310,8 @@ template, .unsupported {display:none;}
   right:5px;
 }
 .fileattachment ul.file-attachment-field-previews .dropzone-action {
-  width:100px;
-  height:16px; 
+    width:50%;
+ height:16px; 
   display:block;
   cursor:pointer;
   text-align:right;
@@ -355,7 +355,7 @@ template, .unsupported {display:none;}
   float:left;
   text-align:center;
   vertical-align:middle;
-  width:100%;
+  width: 50%;
   padding:5px 0;
   height:100%;
   box-sizing:border-box;
