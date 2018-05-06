@@ -1358,11 +1358,12 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 		// Check form field state
 		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
 
-		// Check item permissions
-		$item = $this->getItem();
+		// ID is ImmoImage ID
+        $ID = $request->params()['ID'];
+        $ImmoImage = ImmoImage::get()->filter('ID', $ID)->First();
         
-        $item = ImmoImage::get()->filter('ID', $item->ID)->First();
-        
+        $item = DataObject::get_by_id('File', $ImmoImage->ImageID );
+            
 		if(!$item) return $this->httpError(404);
 		if($item instanceof Folder) return $this->httpError(403);
 		if(!$item->canEdit()) return $this->httpError(403);
@@ -1467,9 +1468,9 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
 
 		// Check item permissions
-		$item = $this->getItem();
+        // $item = $this->getItem();
         
-        $item = ImmoImage::get()->filter('ID', $item->ID)->First();
+        $item = ImmoImage::get()->filter('ImageID', $item->ID)->First();
         
         
 		if(!$item) return $this->httpError(404);
@@ -1486,4 +1487,3 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 	}
 
 }
-
