@@ -244,8 +244,6 @@ class FileAttachmentField extends FileField {
         }
         
         $ImmoImages = $this->Value();
-        
-        // debug::dump($ImmoImages); die;
 
         if ($record) {
             
@@ -270,15 +268,9 @@ class FileAttachmentField extends FileField {
                     }
                     
                 }
-                // $record->write();
+                $record->write();
             
         }
-        
-        
-        
-        //$form->sessionMessage('Yay','good');
-        //Controller::curr()->redirectBack();
-        
         
          return $this;
         
