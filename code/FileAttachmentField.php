@@ -1467,15 +1467,12 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 		// Check form field state
 		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
 
-		// Check item permissions
-        // $item = $this->getItem();
-        
-        $item = ImmoImage::get()->filter('ImageID', $item->ID)->First();
-        
-        
+        $ID = Controller::curr()->request->params()['ID'];
+        $item = ImmoImage::get()->filter('ID', $ID)->First();
+
 		if(!$item) return $this->httpError(404);
-		if($item instanceof Folder) return $this->httpError(403);
-		if(!$item->canEdit()) return $this->httpError(403);
+        // if($item instanceof Folder) return $this->httpError(403);
+        // if(!$item->canEdit()) return $this->httpError(403);
         
 		$form->saveInto($item);
 		$item->write();
