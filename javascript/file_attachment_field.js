@@ -601,6 +601,7 @@ window.UploadInterface = UploadInterface;
 
 // If entwine is available, i.e. CMS, use it.
 if(typeof jQuery === 'function' && typeof jQuery.entwine === 'function') {
+    
     jQuery('.dropzone-holder').entwine({
         onmatch: function () {
             var upload = new UploadInterface(this[0], Dropzone);
@@ -610,6 +611,10 @@ if(typeof jQuery === 'function' && typeof jQuery.entwine === 'function') {
             }
         }
     });
+    
+    // Added Jochen. Tooltip
+    jQuery( document ).tooltip();
+    
 }
 // If not, use a standard onLoad.
 else {
