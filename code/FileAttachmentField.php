@@ -35,12 +35,9 @@ class FileAttachmentField extends FileField {
 
 
     private static $url_handlers = array (
-        'select' => 'handleSelect',
-		'item/$ID' => 'handleItem',
-		'$Action!' => '$Action'
-        //
-        // '//$ID/edit' => 'handleItem',
-        
+      'select' => 'handleSelect',
+      'item/$ID' => 'handleItem',
+      '$Action!' => '$Action'
     );
 
 
@@ -243,13 +240,13 @@ class FileAttachmentField extends FileField {
             }
         }
         
-        $ModelImages = $this->Value();
+        $PeopleImages = $this->Value();
 
         if ($record) {
             
             $x = 0;
 
-                foreach ($ModelImages as $ID) {
+                foreach ($PeopleImages as $ID) {
 
                     //debug::dump($ID);
                     // ONLY ADD, IF THERE IS NO PEOPLE IMAGE WITH THAT ID
@@ -262,7 +259,7 @@ class FileAttachmentField extends FileField {
                         $PeopleImage->ImageID = $ID;
                         $PeopleImage->PeopleID = $record->ID;
                         $PeopleImage->write();
-                        $record->ModelImages()->add($PeopleImage);
+                        $record->PeopleImages()->add($PeopleImage);
                         $x++;
                         
                     }
@@ -567,7 +564,7 @@ class FileAttachmentField extends FileField {
      * @return SS_HTTPResponse
      * @return SS_HTTPResponse
      */
-    public function upload(SS_HTTPRequest $request) {
+    public function upload(SS_HTTPRequest $request) { 
         if($this->isDisabled() || $this->isReadonly() || !$this->CanUpload()) {
             return $this->httpError(403);
         }
