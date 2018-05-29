@@ -243,26 +243,26 @@ class FileAttachmentField extends FileField {
             }
         }
         
-        $ImmoImages = $this->Value();
+        $ModelImages = $this->Value();
 
         if ($record) {
             
             $x = 0;
 
-                foreach ($ImmoImages as $ID) {
+                foreach ($ModelImages as $ID) {
 
                     //debug::dump($ID);
-                    // ONLY ADD, IF THERE IS NO IMMOIMAGR WITH THAT ID
+                    // ONLY ADD, IF THERE IS NO PEOPLE IMAGE WITH THAT ID
                     
-                    if ( ImmoImage::get()->filter('ID', $ID )->Count() == 1) {
+                    if ( PeopleImage::get()->filter('ID', $ID )->Count() == 1) {
                         
                     } else {
-                        $ImmoImage = new ImmoImage();
-                        $ImmoImage->ClassName = 'ImmoImage';
-                        $ImmoImage->ImageID = $ID;
-                        $ImmoImage->ImmobilieID = $record->ID;
-                        $ImmoImage->write();
-                        $record->ImmoImages()->add($ImmoImage);
+                        $PeopleImage = new PeopleImage();
+                        $PeopleImage->ClassName = 'PeopleImage';
+                        $PeopleImage->ImageID = $ID;
+                        $PeopleImage->PeopleID = $record->ID;
+                        $PeopleImage->write();
+                        $record->ModelImages()->add($PeopleImage);
                         $x++;
                         
                     }
@@ -1358,11 +1358,11 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 		// Check form field state
 		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
 
-		// ID is ImmoImage ID
+		// ID is PeopleImage ID
         $ID = $request->params()['ID'];
-        $ImmoImage = ImmoImage::get()->filter('ID', $ID)->First();
+        $PeopleImage = PeopleImage::get()->filter('ID', $ID)->First();
         
-        $item = DataObject::get_by_id('File', $ImmoImage->ImageID );
+        $item = DataObject::get_by_id('File', $PeopleImage->ImageID );
             
 		if(!$item) return $this->httpError(404);
 		if($item instanceof Folder) return $this->httpError(403);
@@ -1422,18 +1422,18 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 	 * @return Form
 	 */
 	public function EditForm() {
-        // Is an ImmoImage Object ID
+        // Is an PeopleImage Object ID
         $ID = Controller::curr()->request->params()['ID'];
-        $ImmoImage = ImmoImage::get()->filter('ID', $ID)->First();
+        $PeopleImage = PeopleImage::get()->filter('ID', $ID)->First();
 
-		$file = $ImmoImage->Image();
+		$file = $PeopleImage->Image();
         
         if(!$file) return $this->httpError(404);
         if($file instanceof Folder) return $this->httpError(403);
         if(!$file->canEdit()) return $this->httpError(403);
         
         // Get form components
-        $fields = singleton('ImmoImage')->getCMSFields();
+        $fields = singleton('PeopleImage')->getCMSFields();
 
         // if($fields->hasTabSet() && ($mainTab = $fields->findOrMakeTab('Root.Main'))) {
 //             $fields = $mainTab->Fields();
@@ -1452,7 +1452,7 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
             $actions,
             $validator
 		);
-		$form->loadDataFrom($ImmoImage);
+		$form->loadDataFrom($PeopleImage);
 		$form->addExtraClass('small');
 
 		return $form;
@@ -1468,7 +1468,7 @@ class FileAttachmentField_ItemHandler extends RequestHandler {
 		if($this->parent->isDisabled() || $this->parent->isReadonly()) return $this->httpError(403);
 
         $ID = Controller::curr()->request->params()['ID'];
-        $item = ImmoImage::get()->filter('ID', $ID)->First();
+        $item = PeopleImage::get()->filter('ID', $ID)->First();
 
 		if(!$item) return $this->httpError(404);
         // if($item instanceof Folder) return $this->httpError(403);

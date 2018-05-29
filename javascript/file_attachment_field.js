@@ -613,7 +613,7 @@ if(typeof jQuery === 'function' && typeof jQuery.entwine === 'function') {
     });
     
     // Added Jochen. Tooltip
-    jQuery( document ).tooltip();
+    //jQuery( document ).tooltip();
     
 }
 // If not, use a standard onLoad.
