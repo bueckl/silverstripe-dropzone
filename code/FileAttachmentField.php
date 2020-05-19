@@ -241,6 +241,8 @@ class FileAttachmentField extends FileField {
         }
         
         $PeopleImages = $this->Value();
+        
+        
 
         if ($record) {
             
