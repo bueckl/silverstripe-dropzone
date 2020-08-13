@@ -13,6 +13,20 @@ var UploadInterface = function (node, backend) {
     this.settings = JSON.parse(node.getAttribute('data-config'));
     this.node = node;
     this.droppedFiles = [];
+    if (!this.settings.params) {
+        this.settings.params = {};
+    }
+
+    if (!this.settings.params.SecurityID) {
+        var formNode = this.node;
+        do {
+            formNode = formNode.parentNode;
+        } while (formNode && formNode.tagName !== 'FORM' && formNode.nodeType !== 11);
+        var securityIDNode = formNode.querySelector("input[name=\"SecurityID\"]");
+        if (securityIDNode) {
+            this.settings.params.SecurityID = securityIDNode.value;
+        }
+    }
     
     if(template) {
         this.settings.previewTemplate = template.innerHTML;
@@ -26,7 +40,9 @@ var UploadInterface = function (node, backend) {
     this.settings.fallback = UploadInterface.prototype.fallback.bind(this);
     this.settings.accept = UploadInterface.prototype.accept.bind(this);
     
-    if(this.node.classList.contains('uploadable')) {
+    if (document.documentElement.classList && this.node.classList.contains('uploadable')) {
+        this.backend = new backend(this.node, this.settings);
+    } else if (this.node.className.indexOf('uploadable') !== -1) {
         this.backend = new backend(this.node, this.settings);
     }
 
@@ -197,24 +213,28 @@ UploadInterface.prototype = {
      * @param  {File}   file 
      * @param  {Function} done      
      */
-    accept: function (file, done) {
-    	if(this.settings.maxResolution && file.type.match(/image.*/)) {
-			this.checkImageResolution(file, this.settings.maxResolution, function (result, width, height) {
-				var msg = null;
-				if(!result) {
+	accept: function (file, done) {
+    	if((this.settings.maxResolution || this.settings.minResolution) && file.type.match(/image.*/)) {
+		this.checkImageResolution(file, this.settings.maxResolution, this.settings.minResolution, function (result, errorType, width, height) {
+			var msg = null;
+			if(!result) {
+				if(errorType == "big"){
 					msg = 'Resolution is too high. Please resize to ' + width + 'x' + height + ' or smaller';
+				}else{
+					msg = 'Resolution is too small. Please resize to ' + width + 'x' + height + ' or bigger';
 				}
-				try {				
-					done(msg);
-				}
-				// Because this check is asynchronous, the file has already been queued at this point
-				// and Dropzone throws an error for queuing a rejected file. Just ignore it.
-				catch (e) {}
-			});
-		}
-		else {
-			return done();
-		}
+			}
+			try {				
+				done(msg);
+			}
+			// Because this check is asynchronous, the file has already been queued at this point
+			// and Dropzone throws an error for queuing a rejected file. Just ignore it.
+			catch (e) {}
+		});
+	}
+	else {
+		return done();
+	}
     },
 
     /**
@@ -262,9 +282,10 @@ UploadInterface.prototype = {
      * A utility method for checking the resolution of a dropped file.
      * @param  {File}   file      
      * @param  {int}   maxPixels The maximum resolution, in pixels
+     * @param  {int}   minPixels The minimum resolution, in pixels
      * @param  {Function} callback       
      */
-    checkImageResolution: function (file, maxPixels, callback) {
+    checkImageResolution: function (file, maxPixels, minPixels, callback) {
 		var reader = new FileReader(),
 			image  = new Image();			
 
@@ -281,7 +302,14 @@ UploadInterface.prototype = {
 						var ratio = imageH / imageW,
 							maxWidth = Math.floor(Math.sqrt(maxPixels / ratio)),
 							maxHeight = Math.round(maxWidth * ratio);
-							callback(false, maxWidth, maxHeight);
+							callback(false, 'big', maxWidth, maxHeight);
+					}
+				        if (pixels < minPixels) {
+						var ratio = imageH / imageW,
+							minWidth = Math.floor(Math.sqrt(minPixels / ratio)),
+							minHeight = Math.round(minWidth * ratio);
+							callback(false, 'small', minWidth, minHeight);
+
 					}
 
 					callback(true);
@@ -538,6 +566,9 @@ function q(selector, context) {
 
     return [].slice.call(node.querySelectorAll(selector));
 }
+
+// Expose UploadInterface as a browser global
+window.UploadInterface = UploadInterface;
 
 // If entwine is available, i.e. CMS, use it.
 if(typeof jQuery === 'function' && typeof jQuery.entwine === 'function') {

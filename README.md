@@ -12,6 +12,7 @@ The Dropzone module provides `FileAttachmentField`, a robust HTML5 uploading int
 * Upload progress
 * Limit file count, file size, file type
 * Permissions for removing/deleting files
+* Tracking files (remove uploaded files that aren't attached to anything)
 * No jQuery dependency
 
 ## Screenshots
@@ -65,7 +66,7 @@ FileAttachmentField::create('MyFiles', 'Upload some  files')
 Image uploads get a few extra options.
 
 ```php
-FileAttachementField::create('MyImage','Upload an image')
+FileAttachmentField::create('MyImage','Upload an image')
     ->imagesOnly() // If bound to a record, with a relation to 'Image', this isn't necessary.
     ->setMaxResolution(50000000); // Do not accept images over 5 megapixels
 ```
@@ -92,8 +93,29 @@ window.dropzones.MyFileDropzone.clear();
 ```
 **NB**: The ID of the actual `.dropzone` element by default is the name of the form input, with 'Dropzone' appended to it, so `FileAttachmentField::create('MyFile')` creates a dropzone with an ID of 'MyFileDropzone'
 
+# Tracking / removing unused file uploads
 
+```php
+FileAttachmentField::create('MyImage','Upload an image')
+    ->setTrackFiles(true)
+```
+or:
+```yml
+FileAttachmentField:
+  track_files: true
+```
+
+To stop users from uploading lots of files and filling the servers hard-drive via the frontend, you can track each file upload in a record, which is then removed when a form saves using `Form::saveInto($record)`.
+
+If you do not use `Form::saveInto`, you will need to manually untrack the file IDs with:
+```
+FileAttachmentFieldTrack::untrack($data['MyImageID']);
+```
+
+To action the deletion of all the tracked files, you can run the `FileAttachmentFieldCleanTask`.
 
 ## Troubleshooting
+
+ * When using `FileAttachmentField` with `BootstrapForm` be sure to [ignore it from the bootstrap transformation](https://github.com/unclecheese/silverstripe-bootstrap-forms/blob/master/code/BootstrapFieldList.php#L74).
 
 Ring Uncle Cheese.
