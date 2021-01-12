@@ -601,7 +601,7 @@ class FileAttachmentField extends FileField {
                 return $this->httpError(400, $tmpFile['error']);
             }
             if($relationClass = $this->getFileClass($tmpFile['name'])) {
-                $fileObject = Object::create($relationClass);
+                $fileObject = SS_Object::create($relationClass);
             }
 
             try {
