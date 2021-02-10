@@ -220,7 +220,7 @@ class FileAttachmentField extends FileField {
                 $this->deleteFileByID($id);
             }
         } else {		
-	    $this->deleteFileByID($id);
+	    $this->deleteFileByID($deletions);
 	}
 
         if(($relation = $this->getRelation($record))) {
