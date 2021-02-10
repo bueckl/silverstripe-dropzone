@@ -213,12 +213,15 @@ class FileAttachmentField extends FileField {
         // Handle deletions. This is a bit of a hack. A workaround for having a single form field
         // post two params.
         $deletions = Controller::curr()->getRequest()->postVar('__deletion__'.$this->getName());
-
-        if($deletions) {
+	
+	// Jochen : Fixing bug when only one ID and not array!!! 
+        if(is_array($deletions)) {
             foreach($deletions as $id) {
                 $this->deleteFileByID($id);
             }
-        }
+        } else {		
+	    $this->deleteFileByID($id);
+	}
 
         if(($relation = $this->getRelation($record))) {
             $relation->setByIDList((array) $this->Value());
