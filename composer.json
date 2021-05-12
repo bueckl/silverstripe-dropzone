@@ -12,12 +12,7 @@
         "silverstripe/framework": "4.*"
     },
     "extra": {
-        "installer-name": "dropzone",
-        "expose": [
-            "javascript",
-            "css",
-            "images"
-        ]        
+        "installer-name": "dropzone"        
     },
     "autoload": {
         "psr-4": {
